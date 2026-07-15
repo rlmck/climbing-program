@@ -38,6 +38,16 @@ export function mondayOfWeek(programStartMonday: ISODate, weekNumber: number): I
   return addDays(programStartMonday, (weekNumber - 1) * 7);
 }
 
+/** UK short form: `2026-07-22` → `22-07`. */
+export function formatDayMonth(date: ISODate): string {
+  return `${date.slice(8, 10)}-${date.slice(5, 7)}`;
+}
+
+/** UK full form: `2026-07-22` → `22-07-2026`. */
+export function formatUK(date: ISODate): string {
+  return `${date.slice(8, 10)}-${date.slice(5, 7)}-${date.slice(0, 4)}`;
+}
+
 export function todayISO(): ISODate {
   const now = new Date();
   // local calendar date (athletes think in local days), formatted as ISO

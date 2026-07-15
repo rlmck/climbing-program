@@ -1,12 +1,13 @@
 import type { SessionType } from './types';
-import { addDays, type ISODate } from './dates';
+import { addDays, formatDayMonth, type ISODate } from './dates';
 
 // Placement validator. Pure function; the app never schedules or reshuffles for
 // the athlete — it only accepts or rejects a drop, with reasons.
 //
 // Rules (1, 3, 5 are hard blocks; rule 2 is a positive hint):
 //   1. Strength requires a completely session-free day immediately before it
-//      (any placed session counts as climbing; a day with nothing placed = rest).
+//      (any placed session except mobility counts as climbing; a day with
+//      nothing placed = rest).
 //      Enforced in both directions: you also can't drop a session onto the day
 //      before an existing strength session.
 //   2. Aerobic the day after strength is allowed and encouraged (hint).
@@ -42,9 +43,12 @@ export interface ValidationResult {
   hints: string[];
 }
 
-/** Every session type counts as a climbing day for rules 1 and 3. */
-function isClimbing(_type: SessionType): boolean {
-  return true;
+/**
+ * Every session type counts as a climbing day for rules 1 and 3 — except
+ * mobility, which is stretching, not climbing, and is exempt from all rules.
+ */
+function isClimbing(type: SessionType): boolean {
+  return type !== 'mobility';
 }
 
 export function validatePlacement(
@@ -54,6 +58,9 @@ export function validatePlacement(
 ): ValidationResult {
   const blocks: string[] = [];
   const hints: string[] = [];
+
+  // Mobility can go on any day — rest days, strength days, anywhere. No rules apply.
+  if (candidate.type === 'mobility') return { ok: true, blocks, hints };
 
   // Merge current week + surrounding window; drop the candidate's own previous
   // position (re-drags must validate against the board without themselves).
@@ -78,14 +85,14 @@ export function validatePlacement(
   if (candidate.type === 'strength' && on(dayBefore).length > 0) {
     blocks.push(
       'Strength needs a full rest day immediately before it — there is already a session ' +
-        `placed the day before (${dayBefore}). Mobility/stretching is fine; climbing is not.`,
+        `placed the day before (${formatDayMonth(dayBefore)}). Mobility/stretching is fine; climbing is not.`,
     );
   }
   // Rule 1, other direction — nothing may land the day before an existing strength session.
   const strengthAfter = on(dayAfter).some((p) => p.type === 'strength');
   if (strengthAfter && isClimbing(candidate.type)) {
     blocks.push(
-      `Strength is scheduled the next day (${dayAfter}) and needs a full rest day before it — ` +
+      `Strength is scheduled the next day (${formatDayMonth(dayAfter)}) and needs a full rest day before it — ` +
         'this day must stay session-free.',
     );
   }

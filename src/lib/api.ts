@@ -119,6 +119,34 @@ export async function upsertCftBenchmark(
   throwIf(error);
 }
 
+/**
+ * Delete every uploaded CFT file for a test round (accidental uploads), plus
+ * the benchmark rows parsed from them. MVC entries and the program are untouched.
+ */
+export async function clearCftUploads(
+  userId: string,
+  athleteId: string,
+  testRound: 1 | 2,
+): Promise<number> {
+  const folder = `${userId}/round${testRound}`;
+  const { data: files, error: listErr } = await supabase.storage.from('cft-files').list(folder);
+  throwIf(listErr);
+  if (files && files.length > 0) {
+    const { error: rmErr } = await supabase.storage
+      .from('cft-files')
+      .remove(files.map((f) => `${folder}/${f.name}`));
+    throwIf(rmErr);
+  }
+  const { error: delErr } = await supabase
+    .from('benchmarks')
+    .delete()
+    .eq('athlete_id', athleteId)
+    .eq('test_round', testRound)
+    .eq('type', 'cft');
+  throwIf(delErr);
+  return files?.length ?? 0;
+}
+
 // ---------------------------------------------------------------------------
 // Program generation (runs once, at baseline benchmark completion)
 // ---------------------------------------------------------------------------
@@ -153,6 +181,7 @@ export async function createProgram(
     push('strength', w.strengthCount);
     push('aerobic', w.aerobicCount);
     push('power_endurance', w.powerEnduranceCount);
+    push('mobility', w.mobilityCount);
   }
   const { error: sessErr } = await supabase.from('sessions').insert(sessions);
   throwIf(sessErr);
@@ -283,6 +312,19 @@ export async function logStrengthSession(
 
 export async function markSessionDone(sessionId: string): Promise<void> {
   const { error } = await supabase.from('sessions').update({ status: 'complete' }).eq('id', sessionId);
+  throwIf(error);
+}
+
+/**
+ * Undo a logged (complete/failed) session: back to 'planned' on its scheduled
+ * day, with the log wiped. Callers must recompute strength loads afterwards —
+ * un-failing a strength session changes the progression history.
+ */
+export async function unmarkSession(sessionId: string): Promise<void> {
+  const { error } = await supabase
+    .from('sessions')
+    .update({ status: 'planned', grip_failures: null, notes: null })
+    .eq('id', sessionId);
   throwIf(error);
 }
 

@@ -6,6 +6,7 @@ import {
   getStrengthLoads,
   logStrengthSession,
   recomputeStrengthLoads,
+  unmarkSession,
   currentLoadsFrom,
 } from '../lib/api';
 import type { SessionRow, StrengthLoadRow } from '../lib/db';
@@ -154,6 +155,30 @@ export default function StrengthSession() {
             </ul>
           )}
           {session.notes && <p className="mt-2 text-sm text-slate-400">“{session.notes}”</p>}
+          <button
+            className="btn-secondary mt-3 w-full"
+            disabled={busy}
+            onClick={async () => {
+              setBusy(true);
+              setError(null);
+              try {
+                await unmarkSession(session.id);
+                await recomputeStrengthLoads(athlete);
+                const [s, l] = await Promise.all([getSession(session.id), getStrengthLoads(athlete.id)]);
+                setSession(s);
+                setLoads(l);
+                setOutcome(null);
+                setNotes('');
+              } catch (e) {
+                setError(e instanceof Error ? e.message : String(e));
+              } finally {
+                setBusy(false);
+              }
+            }}
+          >
+            ↩ Undo this log (re-opens the session)
+          </button>
+          {error && <p className="mt-2 text-sm text-rose-400">{error}</p>}
         </div>
       ) : (
         <div className="card space-y-3">

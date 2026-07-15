@@ -2,7 +2,7 @@
 
 export type Grip = 'half_crimp' | 'three_finger_drag';
 export type Hand = 'left' | 'right';
-export type SessionType = 'strength' | 'aerobic' | 'power_endurance' | 'easy_climbing';
+export type SessionType = 'strength' | 'aerobic' | 'power_endurance' | 'easy_climbing' | 'mobility';
 export type SessionStatus = 'unplaced' | 'planned' | 'complete' | 'failed';
 export type AerobicVariable = 'grade' | 'length' | 'tut';
 

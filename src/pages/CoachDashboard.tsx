@@ -9,7 +9,7 @@ import {
   listAthletes,
 } from '../lib/api';
 import type { AthleteRow, SessionRow } from '../lib/db';
-import { todayISO, weekNumberFor } from '../domain/dates';
+import { formatUK, todayISO, weekNumberFor } from '../domain/dates';
 import { formatKg } from '../domain/loads';
 import { GRIPS, GRIP_LABEL } from '../domain/types';
 
@@ -98,7 +98,7 @@ export default function CoachDashboard() {
               </div>
               <div>
                 <div className="text-xs text-slate-500">Last logged</div>
-                <div>{s.lastLogged ?? '—'}</div>
+                <div>{s.lastLogged ? formatUK(s.lastLogged) : '—'}</div>
               </div>
               {GRIPS.map((grip) => (
                 <div key={grip}>

@@ -140,3 +140,36 @@ describe('re-drags', () => {
     expect(res.ok).toBe(true);
   });
 });
+
+describe('mobility — exempt from every rule', () => {
+  it('can be placed the day before strength', () => {
+    expect(validatePlacement([p('2026-08-20', 'strength')], p('2026-08-19', 'mobility')).ok).toBe(true);
+  });
+
+  it('can be placed on the same day as strength', () => {
+    expect(validatePlacement([p('2026-08-20', 'strength')], p('2026-08-20', 'mobility')).ok).toBe(true);
+  });
+
+  it('does not break the rest day BEFORE strength (strength still placeable after mobility)', () => {
+    expect(validatePlacement([p('2026-08-18', 'mobility')], p('2026-08-19', 'strength')).ok).toBe(true);
+  });
+
+  it('does not count towards the 3-consecutive-climbing-days limit', () => {
+    const existing = [
+      p('2026-08-17', 'aerobic'),
+      p('2026-08-18', 'aerobic'),
+      p('2026-08-19', 'mobility'),
+    ];
+    // 17,18 climbing + mobility on 19 → dropping aerobic on 20 is only a 3rd climbing day in a broken run
+    expect(validatePlacement(existing, p('2026-08-20', 'aerobic')).ok).toBe(true);
+  });
+
+  it('is allowed on a 4th consecutive day where climbing would be blocked', () => {
+    const existing = [
+      p('2026-08-17', 'aerobic'),
+      p('2026-08-18', 'aerobic'),
+      p('2026-08-19', 'power_endurance'),
+    ];
+    expect(validatePlacement(existing, p('2026-08-20', 'mobility')).ok).toBe(true);
+  });
+});

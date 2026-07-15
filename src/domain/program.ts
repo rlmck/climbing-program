@@ -13,6 +13,8 @@ export interface WeekPlan {
    */
   aerobicCount: number;
   powerEnduranceCount: number;
+  /** Mobility/stretching sessions — any day, exempt from every scheduling rule. */
+  mobilityCount: number;
 }
 
 /** Fortnight (1-6) containing a program week, or null for week 13. */
@@ -51,6 +53,7 @@ export function generateProgram(): WeekPlan[] {
       strengthCount: weekHasStrength(w) ? 1 : 0,
       aerobicCount: w <= 8 ? 2 : w <= 12 ? 1 : 0,
       powerEnduranceCount: w <= 8 ? 0 : w <= 10 ? 1 : w <= 12 ? 2 : 0,
+      mobilityCount: 2,
     });
   }
   return weeks;

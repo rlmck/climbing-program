@@ -23,15 +23,16 @@ import {
   getStrengthLoads,
   markSessionDone,
   recomputeStrengthLoads,
+  unmarkSession,
   updateSessionPlacement,
   currentLoadsFrom,
   weekDates,
 } from '../lib/api';
 import type { AerobicProgressionRow, ProgramWeekRow, SessionRow, StrengthLoadRow } from '../lib/db';
 import { validatePlacement, type Placement, type ValidationResult } from '../domain/scheduling';
-import { addDays, todayISO, weekNumberFor } from '../domain/dates';
+import { addDays, formatDayMonth, formatUK, todayISO, weekNumberFor } from '../domain/dates';
 import { fortnightOfWeek, LAST_AEROBIC_FORTNIGHT } from '../domain/program';
-import { AEROBIC_GUIDANCE, PE_GUIDANCE, WEEK13_GUIDANCE } from '../domain/constants';
+import { AEROBIC_GUIDANCE, MOBILITY_GUIDANCE, PE_GUIDANCE, WEEK13_GUIDANCE } from '../domain/constants';
 import { displayWeight, formatKg } from '../domain/loads';
 import { GRIPS, GRIP_LABEL, type AerobicVariable, type SessionType } from '../domain/types';
 
@@ -40,6 +41,7 @@ const TYPE_LABEL: Record<SessionType, string> = {
   aerobic: 'Aerobic',
   power_endurance: 'Power endurance',
   easy_climbing: 'Easy climbing',
+  mobility: 'Mobility',
 };
 
 const TYPE_STYLE: Record<SessionType, string> = {
@@ -47,6 +49,7 @@ const TYPE_STYLE: Record<SessionType, string> = {
   aerobic: 'bg-sky-900/70 border-sky-700',
   power_endurance: 'bg-violet-900/70 border-violet-700',
   easy_climbing: 'bg-teal-900/70 border-teal-700',
+  mobility: 'bg-amber-900/60 border-amber-700',
 };
 
 interface Feedback {
@@ -216,7 +219,7 @@ export default function WeekBoard() {
 
         {currentWeek === null && (
           <div className="card text-sm text-amber-400">
-            Today is outside the 13-week program window (started {start}).
+            Today is outside the 13-week program window (started {formatUK(start)}).
           </div>
         )}
 
@@ -304,6 +307,11 @@ export default function WeekBoard() {
                 await markSessionDone(id);
                 await reload();
               }}
+              onUnmark={async (s) => {
+                await unmarkSession(s.id);
+                if (s.type === 'strength') await recomputeStrengthLoads(athlete);
+                await reload();
+              }}
             />
           ))}
         </div>
@@ -379,6 +387,7 @@ function DayCell({
   currentLoads,
   bodyweight,
   onMarkDone,
+  onUnmark,
 }: {
   date: string;
   sessions: SessionRow[];
@@ -386,6 +395,7 @@ function DayCell({
   currentLoads: Partial<Record<string, StrengthLoadRow>>;
   bodyweight: number | null;
   onMarkDone: (id: string) => Promise<void>;
+  onUnmark: (session: SessionRow) => Promise<void>;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: `day-${date}` });
   const isToday = date === todayISO();
@@ -403,7 +413,7 @@ function DayCell({
     <div ref={setNodeRef} className={`rounded-xl border-2 bg-slate-900/60 p-2 transition-colors ${border}`}>
       <div className="flex items-baseline justify-between px-1">
         <span className={`text-sm font-bold ${isToday ? 'text-emerald-400' : ''}`}>{dayName}</span>
-        <span className="text-xs text-slate-500">{date.slice(5)}</span>
+        <span className="text-xs text-slate-500">{formatDayMonth(date)}</span>
       </div>
       <div className="mt-1 min-h-[2.25rem] space-y-1.5">
         {sessions.length === 0 && <div className="px-1 text-xs text-slate-700">Rest</div>}
@@ -414,6 +424,7 @@ function DayCell({
             currentLoads={currentLoads}
             bodyweight={bodyweight}
             onMarkDone={onMarkDone}
+            onUnmark={onUnmark}
           />
         ))}
       </div>
@@ -427,6 +438,7 @@ function SessionCard({
   currentLoads,
   bodyweight,
   onMarkDone,
+  onUnmark,
   onDelete,
 }: {
   session: SessionRow;
@@ -434,6 +446,7 @@ function SessionCard({
   currentLoads?: Partial<Record<string, StrengthLoadRow>>;
   bodyweight?: number | null;
   onMarkDone?: (id: string) => Promise<void>;
+  onUnmark?: (session: SessionRow) => Promise<void>;
   onDelete?: (id: string) => Promise<void>;
 }) {
   const draggable = session.status === 'unplaced' || session.status === 'planned';
@@ -506,8 +519,12 @@ function SessionCard({
         <p className="mt-1 text-xs leading-snug opacity-80">{PE_GUIDANCE}</p>
       )}
 
+      {!compact && session.type === 'mobility' && (
+        <p className="mt-1 text-xs leading-snug opacity-80">{MOBILITY_GUIDANCE}</p>
+      )}
+
       {!compact &&
-        (session.type === 'aerobic' || session.type === 'easy_climbing' || session.type === 'power_endurance') &&
+        session.type !== 'strength' &&
         session.status === 'planned' &&
         onMarkDone && (
           <button
@@ -518,6 +535,16 @@ function SessionCard({
             Mark done ✓
           </button>
         )}
+
+      {!compact && logged && onUnmark && (
+        <button
+          className="mt-1.5 rounded bg-slate-950/50 px-2 py-1 text-xs font-semibold opacity-80"
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={() => void onUnmark(session)}
+        >
+          ↩ Undo{session.type === 'strength' ? ' log' : ''}
+        </button>
+      )}
 
       {onDelete && session.is_extra && (
         <button

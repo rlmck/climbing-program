@@ -20,6 +20,7 @@ const TYPE_SHORT: Record<SessionType, string> = {
   aerobic: 'AER',
   power_endurance: 'PE',
   easy_climbing: 'EASY',
+  mobility: 'MOB',
 };
 
 const TYPE_COLOR: Record<SessionType, string> = {
@@ -27,6 +28,7 @@ const TYPE_COLOR: Record<SessionType, string> = {
   aerobic: 'bg-sky-900 text-sky-200',
   power_endurance: 'bg-violet-900 text-violet-200',
   easy_climbing: 'bg-teal-900 text-teal-200',
+  mobility: 'bg-amber-900 text-amber-200',
 };
 
 export default function CoachAthlete() {

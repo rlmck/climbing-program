@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { fortnightOfWeek, generateProgram, weekHasStrength } from './program';
-import { addDays, mondayOf, weekNumberFor } from './dates';
+import { addDays, formatDayMonth, formatUK, mondayOf, weekNumberFor } from './dates';
 
 describe('program generation', () => {
   const program = generateProgram();
@@ -61,5 +61,20 @@ describe('date helpers', () => {
     expect(weekNumberFor(start, addDays(start, 12 * 7))).toBe(13);
     expect(weekNumberFor(start, addDays(start, 13 * 7))).toBeNull();
     expect(weekNumberFor(start, '2026-08-16')).toBeNull();
+  });
+});
+
+describe('mobility prescription', () => {
+  it('prescribes 2 mobility sessions every week, including week 13', () => {
+    for (const w of generateProgram()) {
+      expect(w.mobilityCount).toBe(2);
+    }
+  });
+});
+
+describe('UK date formatting', () => {
+  it('formats DD-MM and DD-MM-YYYY', () => {
+    expect(formatDayMonth('2026-07-22')).toBe('22-07');
+    expect(formatUK('2026-07-22')).toBe('22-07-2026');
   });
 });

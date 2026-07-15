@@ -26,6 +26,10 @@ export const PE_GUIDANCE =
 export const WEEK13_GUIDANCE =
   'Very low intensity climbing only — several grades below your max. Go climb easy and enjoy it.';
 
+export const MOBILITY_GUIDANCE =
+  'Stretching / mobility work — do it any day you like, even rest days or strength days. ' +
+  'It never counts as climbing and never blocks the schedule.';
+
 export const AEROBIC_GUIDANCE =
   'Easy, continuous climbing — no pump, no fatigue-chasing. Pick any venue/format you like ' +
   '(wall, cliff, ARC, mileage…).';

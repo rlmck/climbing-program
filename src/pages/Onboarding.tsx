@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../lib/AuthContext';
 import {
+  clearCftUploads,
   createProgram,
   updateBodyweight,
   uploadCftFile,
@@ -32,6 +33,8 @@ export default function Onboarding({ round }: { round: 1 | 2 }) {
   const [slots, setSlots] = useState<Record<string, SlotState>>({});
   const [busy, setBusy] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [confirmClear, setConfirmClear] = useState(false);
+  const [clearMessage, setClearMessage] = useState<string | null>(null);
 
   const bw = parseFloat(bodyweight);
   const mvcNum: Record<Grip, number> = {
@@ -209,6 +212,58 @@ export default function Onboarding({ round }: { round: 1 | 2 }) {
             );
           }),
         )}
+
+        <div className="border-t border-slate-800 pt-3">
+          {!confirmClear ? (
+            <button
+              className="text-xs text-rose-400 underline"
+              onClick={() => {
+                setClearMessage(null);
+                setConfirmClear(true);
+              }}
+            >
+              Uploaded the wrong files? Clear ALL round-{round} CFT uploads…
+            </button>
+          ) : (
+            <div className="space-y-2 rounded-lg border border-rose-800 bg-rose-950/30 p-3">
+              <p className="text-xs text-rose-200">
+                This deletes every uploaded CFT file and its parsed results for round {round} (all
+                4 grip/hand slots, for this account). MVC entries and your program are untouched.
+              </p>
+              <div className="flex gap-2">
+                <button
+                  className="btn flex-1 border border-rose-600 bg-rose-900 text-xs text-white"
+                  disabled={busy}
+                  onClick={async () => {
+                    if (!athlete || !session) return;
+                    setBusy(true);
+                    setSubmitError(null);
+                    try {
+                      const removed = await clearCftUploads(session.user.id, athlete.id, round);
+                      setSlots({});
+                      setClearMessage(`Cleared ${removed} uploaded file(s) and their parsed results.`);
+                    } catch (e) {
+                      setSubmitError(e instanceof Error ? e.message : String(e));
+                    } finally {
+                      setBusy(false);
+                      setConfirmClear(false);
+                    }
+                  }}
+                >
+                  {busy ? 'Clearing…' : 'Yes, delete them'}
+                </button>
+                <button
+                  className="btn flex-1 border border-slate-700 bg-slate-800 text-xs"
+                  disabled={busy}
+                  onClick={() => setConfirmClear(false)}
+                >
+                  Keep files
+                </button>
+              </div>
+            </div>
+          )}
+          {clearMessage && <p className="mt-2 text-xs text-emerald-400">{clearMessage}</p>}
+        </div>
       </section>
 
       {submitError && <p className="text-sm text-rose-400">{submitError}</p>}
