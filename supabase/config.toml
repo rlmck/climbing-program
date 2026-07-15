@@ -1,0 +1,25 @@
+# Remote config for the linked project. Apply with: npx supabase config push
+#
+# NOTE: config push diffs the FULL rendered config — unspecified fields fall
+# back to CLI defaults and will overwrite the remote. Any remote setting we
+# care about must be pinned here explicitly.
+project_id = "unrfunqbrafttlrocdgv"
+
+[auth]
+# Where auth emails (password recovery etc.) send users by default.
+site_url = "https://rlmck.github.io/climbing-program/"
+# Extra URLs allowed as redirect targets (local dev).
+additional_redirect_urls = [
+  "https://rlmck.github.io/climbing-program/**",
+  "http://localhost:5173/**",
+]
+
+[auth.email]
+# Pinned to the hosted-project originals (CLI defaults differ).
+enable_confirmations = true
+max_frequency = "1m0s"
+otp_length = 8
+
+[storage.vector]
+# Vector buckets need a paid tier; keep disabled to match the remote.
+enabled = false

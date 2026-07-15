@@ -19,6 +19,9 @@ interface AuthState {
   /** Coach-capable users can flip between "my training" and "coach view". */
   coachView: boolean;
   setCoachView: (on: boolean) => void;
+  /** True after arriving via a password-recovery link, until a new password is set. */
+  passwordRecovery: boolean;
+  clearPasswordRecovery: () => void;
   refreshAthlete: () => Promise<void>;
   signOut: () => Promise<void>;
 }
@@ -30,6 +33,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [athlete, setAthlete] = useState<AthleteRow | null>(null);
   const [coachView, setCoachView] = useState(false);
+  const [passwordRecovery, setPasswordRecovery] = useState(false);
 
   const loadAthlete = useCallback(async (s: Session | null) => {
     if (!s?.user) {
@@ -51,8 +55,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await loadAthlete(data.session);
       setLoading(false);
     });
-    const { data: sub } = supabase.auth.onAuthStateChange(async (_event, s) => {
+    const { data: sub } = supabase.auth.onAuthStateChange(async (event, s) => {
       if (cancelled) return;
+      if (event === 'PASSWORD_RECOVERY') setPasswordRecovery(true);
       setSession(s);
       await loadAthlete(s);
       setLoading(false);
@@ -69,9 +74,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await supabase.auth.signOut();
   }, []);
 
+  const clearPasswordRecovery = useCallback(() => setPasswordRecovery(false), []);
+
   const value = useMemo(
-    () => ({ loading, session, athlete, coachView, setCoachView, refreshAthlete, signOut }),
-    [loading, session, athlete, coachView, refreshAthlete, signOut],
+    () => ({
+      loading,
+      session,
+      athlete,
+      coachView,
+      setCoachView,
+      passwordRecovery,
+      clearPasswordRecovery,
+      refreshAthlete,
+      signOut,
+    }),
+    [loading, session, athlete, coachView, passwordRecovery, clearPasswordRecovery, refreshAthlete, signOut],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

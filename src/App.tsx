@@ -2,6 +2,7 @@ import { Navigate, Route, Routes } from 'react-router-dom';
 import { useAuth } from './lib/AuthContext';
 import Layout from './components/Layout';
 import Login from './pages/Login';
+import ResetPassword from './pages/ResetPassword';
 import Onboarding from './pages/Onboarding';
 import WeekBoard from './pages/WeekBoard';
 import StrengthSession from './pages/StrengthSession';
@@ -16,9 +17,10 @@ function Spinner() {
 }
 
 export default function App() {
-  const { loading, session, athlete } = useAuth();
+  const { loading, session, athlete, passwordRecovery, clearPasswordRecovery } = useAuth();
 
   if (loading) return <Spinner />;
+  if (session && passwordRecovery) return <ResetPassword onDone={clearPasswordRecovery} />;
   if (!session) {
     return (
       <Routes>
