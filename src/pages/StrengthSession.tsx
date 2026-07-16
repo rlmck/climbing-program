@@ -11,9 +11,10 @@ import {
 } from '../lib/api';
 import type { SessionRow, StrengthLoadRow } from '../lib/db';
 import { STRENGTH_PROTOCOL } from '../domain/constants';
-import { displayWeight, formatKg } from '../domain/loads';
+import { displayWeight } from '../domain/loads';
 import { GRIPS, GRIP_LABEL, type Grip, type GripFailures } from '../domain/types';
 import { fortnightOfWeek } from '../domain/program';
+import { Kg, StatusTag } from '../components/ui';
 
 export default function StrengthSession() {
   const { sessionId } = useParams<{ sessionId: string }>();
@@ -112,15 +113,17 @@ export default function StrengthSession() {
             {row ? (
               <div className="mt-2 grid grid-cols-2 gap-2 text-sm">
                 <div>
-                  <div className="text-xs text-slate-500">Total load</div>
-                  <div className="text-lg font-bold">{formatKg(row.load_kg)}</div>
+                  <div className="microlabel">Total load</div>
+                  <div className="mt-0.5 text-xl font-semibold">
+                    <Kg kg={row.load_kg} />
+                  </div>
                 </div>
                 <div>
-                  <div className="text-xs text-slate-500">
+                  <div className="microlabel">
                     {dw?.mode === 'assisted' ? 'Assistance (pulley)' : 'Added weight'}
                   </div>
-                  <div className="text-lg font-bold">
-                    {dw ? (dw.mode === 'added' ? `+${formatKg(dw.kg)}` : `−${formatKg(dw.kg)}`) : '—'}
+                  <div className="mt-0.5 text-xl font-semibold">
+                    {dw ? <Kg kg={dw.kg} prefix={dw.mode === 'added' ? '+' : '−'} /> : '—'}
                   </div>
                   {dw?.mode === 'assisted' && (
                     <div className="text-xs text-amber-400">take weight OFF via pulley/band</div>
@@ -136,8 +139,8 @@ export default function StrengthSession() {
 
       {logged ? (
         <div className="card">
-          <div className="font-semibold">
-            Logged: {session.status === 'complete' ? 'Complete ✅' : 'Failed ❌'}
+          <div className="flex items-center gap-2 font-semibold">
+            Logged <StatusTag status={session.status === 'complete' ? 'complete' : 'failed'} />
           </div>
           {session.status === 'failed' && session.grip_failures && (
             <ul className="mt-2 space-y-1 text-sm text-slate-300">
@@ -176,7 +179,7 @@ export default function StrengthSession() {
               }
             }}
           >
-            ↩ Undo this log (re-opens the session)
+            Undo this log (re-opens the session)
           </button>
           {error && <p className="mt-2 text-sm text-rose-400">{error}</p>}
         </div>

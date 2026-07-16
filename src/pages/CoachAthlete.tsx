@@ -86,8 +86,8 @@ export default function CoachAthlete() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-bold">{athlete.name}</h1>
-        <Link to="/coach" className="text-sm text-slate-400 hover:text-slate-200">
-          ← All athletes
+        <Link to="/coach" className="text-sm text-slate-400 underline hover:text-slate-200">
+          All athletes
         </Link>
       </div>
 
@@ -103,7 +103,7 @@ export default function CoachAthlete() {
               disabled={viewWeek <= 1}
               onClick={() => setViewWeek((w) => (w ?? 1) - 1)}
             >
-              ←
+              Prev
             </button>
             <div className="text-sm font-semibold">Week {viewWeek} (read-only)</div>
             <button
@@ -111,7 +111,7 @@ export default function CoachAthlete() {
               disabled={viewWeek >= 13}
               onClick={() => setViewWeek((w) => (w ?? 1) + 1)}
             >
-              →
+              Next
             </button>
           </div>
           <div className="mt-3 grid grid-cols-7 gap-1 text-center">
@@ -126,10 +126,18 @@ export default function CoachAthlete() {
                   </div>
                   <div className="mt-1 space-y-1">
                     {day.map((s) => (
-                      <div key={s.id} className={`rounded px-0.5 py-0.5 text-[9px] font-bold ${TYPE_COLOR[s.type]}`}>
+                      <div
+                        key={s.id}
+                        title={s.status}
+                        className={`rounded px-0.5 py-0.5 text-[9px] font-bold ${TYPE_COLOR[s.type]} ${
+                          s.status === 'complete'
+                            ? 'ring-1 ring-emerald-400'
+                            : s.status === 'failed'
+                              ? 'ring-1 ring-rose-400'
+                              : ''
+                        }`}
+                      >
                         {TYPE_SHORT[s.type]}
-                        {s.status === 'complete' && ' ✓'}
-                        {s.status === 'failed' && ' ✗'}
                       </div>
                     ))}
                   </div>

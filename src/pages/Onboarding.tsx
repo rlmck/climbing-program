@@ -200,12 +200,12 @@ export default function Onboarding({ round }: { round: 1 | 2 }) {
                 </div>
                 {slot.errors.map((err) => (
                   <p key={err} className="mt-2 text-xs text-rose-400">
-                    ✕ {err}
+                    {err}
                   </p>
                 ))}
                 {slot.warnings.map((w) => (
                   <p key={w} className="mt-2 text-xs text-amber-400">
-                    ⚠ {w}
+                    {w}
                   </p>
                 ))}
               </div>

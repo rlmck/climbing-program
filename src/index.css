@@ -9,10 +9,13 @@
   body {
     @apply bg-void text-slate-100 antialiased;
     overscroll-behavior-y: none;
-    /* A faint summit glow at the top of the page — fixed so it doesn't scroll. */
+    /* Summit glow over a faint blueprint grid — fixed so neither scrolls. */
     background-image:
       radial-gradient(60rem 32rem at 50% -12rem, rgba(16, 185, 129, 0.09), transparent 65%),
-      radial-gradient(40rem 24rem at 90% -8rem, rgba(56, 189, 248, 0.05), transparent 60%);
+      radial-gradient(40rem 24rem at 90% -8rem, rgba(56, 189, 248, 0.05), transparent 60%),
+      linear-gradient(rgba(148, 163, 184, 0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(148, 163, 184, 0.04) 1px, transparent 1px);
+    background-size: auto, auto, 28px 28px, 28px 28px;
     background-attachment: fixed;
   }
   h1,
@@ -35,8 +38,17 @@
 
 @layer components {
   .card {
-    @apply rounded-2xl border border-white/[0.06] bg-gradient-to-b from-slate-900/90 to-stone p-4
+    @apply relative rounded-2xl border border-white/[0.06] bg-gradient-to-b from-slate-900/90 to-stone p-4
       shadow-lg shadow-black/30;
+  }
+  /* Specular top edge — a hairline catchlight across every card. */
+  .card::before {
+    content: '';
+    @apply pointer-events-none absolute inset-x-4 top-0 h-px;
+    background: linear-gradient(90deg, transparent, rgba(148, 163, 184, 0.22), transparent);
+  }
+  .microlabel {
+    @apply font-mono text-[0.62rem] font-semibold uppercase tracking-[0.16em] text-slate-500;
   }
   .btn {
     @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold
@@ -65,3 +77,9 @@
     @apply inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold;
   }
 }
+
+/* Chart lettering matches the data readouts. */
+.recharts-wrapper text {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+}
+

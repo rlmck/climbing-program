@@ -59,7 +59,7 @@ export default function Layout({ children }: { children: ReactNode }) {
                 navigate(next ? '/coach' : '/week');
               }}
             >
-              {coachView ? '→ My training' : '→ Coach view'}
+              {coachView ? 'My training' : 'Coach view'}
             </button>
           )}
           <button className="text-xs text-slate-500 hover:text-slate-300" onClick={() => void signOut()}>

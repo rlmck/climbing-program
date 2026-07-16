@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   DndContext,
@@ -36,6 +36,8 @@ import { fortnightOfWeek, LAST_AEROBIC_FORTNIGHT } from '../domain/program';
 import { AEROBIC_GUIDANCE, WEEK13_GUIDANCE } from '../domain/constants';
 import { displayWeight, formatKg } from '../domain/loads';
 import { GRIPS, GRIP_LABEL, type AerobicVariable, type SessionType } from '../domain/types';
+import { Kg, StatusTag } from '../components/ui';
+import { breathe, riseIn } from '../lib/motion';
 
 const TYPE_LABEL: Record<SessionType, string> = {
   strength: 'Strength',
@@ -71,6 +73,11 @@ export default function WeekBoard() {
   const [aerobic, setAerobic] = useState<AerobicProgressionRow[]>([]);
   const [feedback, setFeedback] = useState<Feedback | null>(null);
   const [hover, setHover] = useState<{ date: string; ok: boolean } | null>(null);
+  const daysRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    riseIn(daysRef.current, ':scope > div');
+  }, [viewWeek]);
 
   const days = useMemo(() => (start ? weekDates(start, viewWeek) : []), [start, viewWeek]);
 
@@ -194,12 +201,11 @@ export default function WeekBoard() {
         <div>
           <div className="flex items-center justify-between">
             <button
-              className="btn-secondary !px-3 !py-1.5"
+              className="btn-secondary !px-3 !py-1.5 font-mono text-[0.65rem] uppercase tracking-[0.14em]"
               disabled={viewWeek <= 1}
               onClick={() => setViewWeek((w) => w - 1)}
-              aria-label="Previous week"
             >
-              ←
+              Prev
             </button>
             <div className="text-center">
               <div className="font-display text-lg font-bold leading-tight">
@@ -213,12 +219,11 @@ export default function WeekBoard() {
               </div>
             </div>
             <button
-              className="btn-secondary !px-3 !py-1.5"
+              className="btn-secondary !px-3 !py-1.5 font-mono text-[0.65rem] uppercase tracking-[0.14em]"
               disabled={viewWeek >= 13}
               onClick={() => setViewWeek((w) => w + 1)}
-              aria-label="Next week"
             >
-              →
+              Next
             </button>
           </div>
           <BoltRail viewWeek={viewWeek} currentWeek={currentWeek} onSelect={setViewWeek} />
@@ -232,8 +237,8 @@ export default function WeekBoard() {
 
         {viewWeek <= 10 && (
           <div className="card !p-3">
-            <div className="text-xs uppercase tracking-wider text-slate-500">Current hang loads</div>
-            <div className="mt-1 grid grid-cols-2 gap-2 text-sm">
+            <div className="microlabel">Current hang loads</div>
+            <div className="mt-2 grid grid-cols-2 gap-3">
               {GRIPS.map((grip) => {
                 const row = currentLoads[grip];
                 if (!row) return <div key={grip} className="text-slate-500">—</div>;
@@ -243,14 +248,17 @@ export default function WeekBoard() {
                     : null;
                 return (
                   <div key={grip}>
-                    <div className="font-semibold">{GRIP_LABEL[grip]}</div>
-                    <div className="text-slate-300">
-                      {formatKg(row.load_kg)} total
-                      {dw &&
-                        (dw.mode === 'added'
-                          ? ` · +${formatKg(dw.kg)}`
-                          : ` · ${formatKg(dw.kg)} assisted`)}
+                    <div className="text-xs font-semibold text-slate-300">{GRIP_LABEL[grip]}</div>
+                    <div className="mt-0.5 text-xl font-semibold text-slate-100">
+                      <Kg kg={row.load_kg} />
                     </div>
+                    {dw && (
+                      <div className="font-mono text-[0.65rem] text-slate-500">
+                        {dw.mode === 'added'
+                          ? `+${formatKg(dw.kg)} on belt`
+                          : `${formatKg(dw.kg)} assisted`}
+                      </div>
+                    )}
                   </div>
                 );
               })}
@@ -267,8 +275,11 @@ export default function WeekBoard() {
             }`}
             onClick={() => setFeedback(null)}
           >
+            <div className={`microlabel ${feedback.kind === 'block' ? '!text-rose-400' : '!text-emerald-400'}`}>
+              {feedback.kind === 'block' ? 'Blocked' : 'Placed'}
+            </div>
             {feedback.messages.map((m) => (
-              <p key={m}>{feedback.kind === 'block' ? '✕ ' : '✓ '}{m}</p>
+              <p key={m} className="mt-1">{m}</p>
             ))}
           </div>
         )}
@@ -300,7 +311,7 @@ export default function WeekBoard() {
 
         <Tray sessions={tray} onDelete={async (id) => { await deleteSession(id); await reload(); }} />
 
-        <div className="space-y-2">
+        <div ref={daysRef} className="space-y-2">
           {days.map((date) => (
             <DayCell
               key={date}
@@ -376,7 +387,7 @@ function ResetProgramCard() {
             aerobic progressions, benchmarks and uploaded CFT files (both rounds). You&apos;ll be
             taken back to onboarding to benchmark and start again. There is no undo.
           </p>
-          {error && <p className="text-xs text-rose-400">✕ {error}</p>}
+          {error && <p className="text-xs text-rose-400">{error}</p>}
           <div className="flex gap-2">
             <button
               className="btn flex-1 border border-rose-600 bg-rose-900 text-xs text-white"
@@ -423,6 +434,8 @@ function BoltRail({
   currentWeek: number | null;
   onSelect: (week: number) => void;
 }) {
+  const currentBoltRef = useRef<HTMLSpanElement>(null);
+  useEffect(() => breathe(currentBoltRef.current), [currentWeek]);
   return (
     <div className="relative mt-3 flex items-center justify-between px-1">
       <div className="absolute inset-x-3 top-1/2 h-px -translate-y-1/2 bg-white/10" aria-hidden="true" />
@@ -439,12 +452,13 @@ function BoltRail({
             className="relative z-10 flex h-7 w-7 items-center justify-center"
           >
             <span
-              className={`block rounded-full transition-all ${
+              ref={isCurrent ? currentBoltRef : undefined}
+              className={`block rounded-full ${
                 isCurrent
                   ? 'h-3.5 w-3.5 bg-emerald-400 shadow-[0_0_10px_2px_rgba(52,211,153,0.5)]'
                   : done
-                    ? 'h-2 w-2 bg-emerald-600'
-                    : 'h-2 w-2 border border-slate-600 bg-void'
+                    ? 'h-2 w-2 bg-emerald-600 transition-all'
+                    : 'h-2 w-2 border border-slate-600 bg-void transition-all'
               } ${isViewed ? 'ring-2 ring-offset-2 ring-offset-void ' + (isCurrent ? 'ring-emerald-200/70' : 'ring-slate-400/80') : ''}`}
             />
           </button>
@@ -473,7 +487,7 @@ function Tray({
         To schedule ({sessions.length}) — drop here to unschedule
       </div>
       {sessions.length === 0 ? (
-        <p className="text-sm text-slate-600">Everything placed. 🎉</p>
+        <p className="text-sm text-slate-600">All sessions placed.</p>
       ) : (
         <div className="flex flex-wrap gap-2">
           {sessions.map((s) => (
@@ -572,7 +586,7 @@ function SessionCard({
               className="rounded bg-slate-950/50 px-2 py-1 font-semibold"
               onPointerDown={(e) => e.stopPropagation()}
             >
-              {logged ? 'View log' : 'Open →'}
+              {logged ? 'View log' : 'Open'}
             </Link>
           )}
           {!compact && session.type !== 'strength' && session.status === 'planned' && onMarkDone && (
@@ -581,7 +595,7 @@ function SessionCard({
               onPointerDown={(e) => e.stopPropagation()}
               onClick={() => void onMarkDone(session.id)}
             >
-              Done ✓
+              Mark done
             </button>
           )}
           {!compact && logged && onUnmark && (
@@ -589,24 +603,23 @@ function SessionCard({
               className="rounded bg-slate-950/50 px-2 py-1 font-semibold opacity-80"
               onPointerDown={(e) => e.stopPropagation()}
               onClick={() => void onUnmark(session)}
-              aria-label="Undo"
             >
-              ↩
+              Undo
             </button>
           )}
-          {session.status === 'complete' && '✅'}
-          {session.status === 'failed' && '❌'}
+          {(session.status === 'complete' || session.status === 'failed') && (
+            <StatusTag status={session.status} />
+          )}
         </span>
       </div>
 
       {onDelete && session.is_extra && (
         <button
-          className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-slate-700 text-xs"
+          className="absolute -right-1.5 -top-2 rounded-full bg-slate-700 px-1.5 py-0.5 font-mono text-[0.55rem] font-semibold uppercase tracking-[0.1em] text-slate-200"
           onPointerDown={(e) => e.stopPropagation()}
           onClick={() => void onDelete(session.id)}
-          aria-label="Remove extra session"
         >
-          ×
+          remove
         </button>
       )}
     </div>

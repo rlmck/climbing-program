@@ -111,7 +111,7 @@ export default function CoachDashboard() {
 
           {s.failedSessions.length > 0 && (
             <div className="mt-2 text-xs text-rose-400">
-              ⚠ {s.failedSessions.length} failed strength session(s) —{' '}
+              {s.failedSessions.length} failed strength session(s) —{' '}
               {s.failedSessions
                 .map((f) => `wk ${f.week_number}`)
                 .join(', ')}
