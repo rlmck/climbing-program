@@ -433,6 +433,32 @@ export async function addAerobicProgression(
 }
 
 // ---------------------------------------------------------------------------
+// Program reset
+// ---------------------------------------------------------------------------
+
+/**
+ * Wipe the athlete's entire program so onboarding can run again from scratch:
+ * sessions, program weeks, strength loads, aerobic progressions, benchmarks
+ * (both rounds, including uploaded CFT files), bodyweight and the program
+ * start date. Irreversible.
+ */
+export async function resetProgram(userId: string, athlete: AthleteRow): Promise<void> {
+  for (const round of [1, 2] as const) {
+    await clearCftUploads(userId, athlete.id, round);
+  }
+  const tables = ['sessions', 'strength_loads', 'aerobic_progressions', 'program_weeks', 'benchmarks'] as const;
+  for (const table of tables) {
+    const { error } = await supabase.from(table).delete().eq('athlete_id', athlete.id);
+    throwIf(error);
+  }
+  const { error } = await supabase
+    .from('athletes')
+    .update({ program_start_date: null, bodyweight_kg: null })
+    .eq('id', athlete.id);
+  throwIf(error);
+}
+
+// ---------------------------------------------------------------------------
 // Misc helpers
 // ---------------------------------------------------------------------------
 

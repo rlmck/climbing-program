@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   DndContext,
   PointerSensor,
@@ -23,6 +23,7 @@ import {
   getStrengthLoads,
   markSessionDone,
   recomputeStrengthLoads,
+  resetProgram,
   unmarkSession,
   updateSessionPlacement,
   currentLoadsFrom,
@@ -32,7 +33,7 @@ import type { AerobicProgressionRow, ProgramWeekRow, SessionRow, StrengthLoadRow
 import { validatePlacement, type Placement, type ValidationResult } from '../domain/scheduling';
 import { addDays, formatDayMonth, formatUK, todayISO, weekNumberFor } from '../domain/dates';
 import { fortnightOfWeek, LAST_AEROBIC_FORTNIGHT } from '../domain/program';
-import { AEROBIC_GUIDANCE, MOBILITY_GUIDANCE, PE_GUIDANCE, WEEK13_GUIDANCE } from '../domain/constants';
+import { AEROBIC_GUIDANCE, WEEK13_GUIDANCE } from '../domain/constants';
 import { displayWeight, formatKg } from '../domain/loads';
 import { GRIPS, GRIP_LABEL, type AerobicVariable, type SessionType } from '../domain/types';
 
@@ -178,14 +179,13 @@ export default function WeekBoard() {
   const currentLoads = currentLoadsFrom(loads);
   const fortnight = fortnightOfWeek(viewWeek);
   const latestAerobic = aerobic.length ? aerobic[aerobic.length - 1] : null;
-  const needsBaseline = fortnight === 1 && !aerobic.some((a) => a.fortnight === 1);
   const needsBump =
     fortnight !== null &&
     fortnight >= 2 &&
     fortnight <= LAST_AEROBIC_FORTNIGHT &&
     currentWeek !== null &&
     fortnightOfWeek(Math.min(currentWeek, 12)) === fortnight &&
-    aerobic.some((a) => a.fortnight === 1) &&
+    aerobic.length > 0 &&
     !aerobic.some((a) => a.fortnight === fortnight);
 
   return (
@@ -276,7 +276,6 @@ export default function WeekBoard() {
           </div>
         )}
 
-        {needsBaseline && <AerobicBaselineCard athleteId={athlete.id} onSaved={reload} />}
         {needsBump && fortnight !== null && latestAerobic && (
           <AerobicBumpCard
             athleteId={athlete.id}
@@ -285,7 +284,7 @@ export default function WeekBoard() {
             onSaved={reload}
           />
         )}
-        {latestAerobic && !needsBaseline && !needsBump && (
+        {latestAerobic && !needsBump && (
           <div className="card !p-3 text-xs text-slate-400">
             Aerobic targets: grade {latestAerobic.grade} · length {latestAerobic.route_length} · TUT{' '}
             {latestAerobic.tut_seconds}s — {AEROBIC_GUIDANCE}
@@ -301,8 +300,6 @@ export default function WeekBoard() {
               date={date}
               hover={hover}
               sessions={sessions.filter((s) => s.scheduled_date === date)}
-              currentLoads={currentLoads}
-              bodyweight={athlete.bodyweight_kg}
               onMarkDone={async (id) => {
                 await markSessionDone(id);
                 await reload();
@@ -340,12 +337,69 @@ export default function WeekBoard() {
             </button>
           )}
         </div>
-        <p className="pb-4 text-center text-xs text-slate-600">
+        <p className="text-center text-xs text-slate-600">
           Drag sessions onto days. Unplaced sessions lapse at the end of the week — nothing is
           rescheduled automatically.
         </p>
+
+        <ResetProgramCard />
       </div>
     </DndContext>
+  );
+}
+
+function ResetProgramCard() {
+  const { athlete, session, refreshAthlete } = useAuth();
+  const navigate = useNavigate();
+  const [confirming, setConfirming] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  if (!athlete || !session) return null;
+
+  return (
+    <div className="pb-4 text-center">
+      {!confirming ? (
+        <button className="text-xs text-slate-600 underline hover:text-rose-400" onClick={() => setConfirming(true)}>
+          Start over — clear the whole program…
+        </button>
+      ) : (
+        <div className="space-y-2 rounded-lg border border-rose-800 bg-rose-950/30 p-3 text-left">
+          <p className="text-xs text-rose-200">
+            This permanently deletes your entire program: all sessions and logs, strength loads,
+            aerobic progressions, benchmarks and uploaded CFT files (both rounds). You&apos;ll be
+            taken back to onboarding to benchmark and start again. There is no undo.
+          </p>
+          {error && <p className="text-xs text-rose-400">✕ {error}</p>}
+          <div className="flex gap-2">
+            <button
+              className="btn flex-1 border border-rose-600 bg-rose-900 text-xs text-white"
+              disabled={busy}
+              onClick={async () => {
+                setBusy(true);
+                setError(null);
+                try {
+                  await resetProgram(session.user.id, athlete);
+                  await refreshAthlete();
+                  navigate('/onboarding');
+                } catch (e) {
+                  setError(e instanceof Error ? e.message : String(e));
+                  setBusy(false);
+                }
+              }}
+            >
+              {busy ? 'Clearing…' : 'Yes, delete everything'}
+            </button>
+            <button
+              className="btn flex-1 border border-slate-700 bg-slate-800 text-xs"
+              disabled={busy}
+              onClick={() => setConfirming(false)}
+            >
+              Keep my program
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -384,16 +438,12 @@ function DayCell({
   date,
   sessions,
   hover,
-  currentLoads,
-  bodyweight,
   onMarkDone,
   onUnmark,
 }: {
   date: string;
   sessions: SessionRow[];
   hover: { date: string; ok: boolean } | null;
-  currentLoads: Partial<Record<string, StrengthLoadRow>>;
-  bodyweight: number | null;
   onMarkDone: (id: string) => Promise<void>;
   onUnmark: (session: SessionRow) => Promise<void>;
 }) {
@@ -418,14 +468,7 @@ function DayCell({
       <div className="mt-1 min-h-[2.25rem] space-y-1.5">
         {sessions.length === 0 && <div className="px-1 text-xs text-slate-700">Rest</div>}
         {sessions.map((s) => (
-          <SessionCard
-            key={s.id}
-            session={s}
-            currentLoads={currentLoads}
-            bodyweight={bodyweight}
-            onMarkDone={onMarkDone}
-            onUnmark={onUnmark}
-          />
+          <SessionCard key={s.id} session={s} onMarkDone={onMarkDone} onUnmark={onUnmark} />
         ))}
       </div>
     </div>
@@ -435,16 +478,12 @@ function DayCell({
 function SessionCard({
   session,
   compact = false,
-  currentLoads,
-  bodyweight,
   onMarkDone,
   onUnmark,
   onDelete,
 }: {
   session: SessionRow;
   compact?: boolean;
-  currentLoads?: Partial<Record<string, StrengthLoadRow>>;
-  bodyweight?: number | null;
   onMarkDone?: (id: string) => Promise<void>;
   onUnmark?: (session: SessionRow) => Promise<void>;
   onDelete?: (id: string) => Promise<void>;
@@ -475,76 +514,39 @@ function SessionCard({
           {TYPE_LABEL[session.type]}
           {session.is_extra && <span className="ml-1 text-xs font-normal opacity-70">(extra)</span>}
         </span>
-        <span className="text-xs">
+        <span className="flex items-center gap-1.5 text-xs">
+          {!compact && session.type === 'strength' && session.scheduled_date && (
+            <Link
+              to={`/session/${session.id}`}
+              className="rounded bg-slate-950/50 px-2 py-1 font-semibold"
+              onPointerDown={(e) => e.stopPropagation()}
+            >
+              {logged ? 'View log' : 'Open →'}
+            </Link>
+          )}
+          {!compact && session.type !== 'strength' && session.status === 'planned' && onMarkDone && (
+            <button
+              className="rounded bg-slate-950/50 px-2 py-1 font-semibold"
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={() => void onMarkDone(session.id)}
+            >
+              Done ✓
+            </button>
+          )}
+          {!compact && logged && onUnmark && (
+            <button
+              className="rounded bg-slate-950/50 px-2 py-1 font-semibold opacity-80"
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={() => void onUnmark(session)}
+              aria-label="Undo"
+            >
+              ↩
+            </button>
+          )}
           {session.status === 'complete' && '✅'}
           {session.status === 'failed' && '❌'}
         </span>
       </div>
-
-      {!compact && session.type === 'strength' && (
-        <div className="mt-1 text-xs opacity-90">
-          {GRIPS.map((grip) => {
-            const row = currentLoads?.[grip];
-            if (!row) return null;
-            const dw = bodyweight != null ? displayWeight(row.load_kg, bodyweight) : null;
-            return (
-              <div key={grip}>
-                {GRIP_LABEL[grip]}: {formatKg(row.load_kg)}
-                {dw && (dw.mode === 'added' ? ` (+${formatKg(dw.kg)})` : ` (${formatKg(dw.kg)} assist)`)}
-              </div>
-            );
-          })}
-          {!logged && session.scheduled_date && (
-            <Link
-              to={`/session/${session.id}`}
-              className="mt-1 inline-block rounded bg-slate-950/50 px-2 py-1 font-semibold"
-              onPointerDown={(e) => e.stopPropagation()}
-            >
-              Open session →
-            </Link>
-          )}
-          {logged && (
-            <Link
-              to={`/session/${session.id}`}
-              className="mt-1 inline-block text-xs underline opacity-80"
-              onPointerDown={(e) => e.stopPropagation()}
-            >
-              View log
-            </Link>
-          )}
-        </div>
-      )}
-
-      {!compact && session.type === 'power_endurance' && (
-        <p className="mt-1 text-xs leading-snug opacity-80">{PE_GUIDANCE}</p>
-      )}
-
-      {!compact && session.type === 'mobility' && (
-        <p className="mt-1 text-xs leading-snug opacity-80">{MOBILITY_GUIDANCE}</p>
-      )}
-
-      {!compact &&
-        session.type !== 'strength' &&
-        session.status === 'planned' &&
-        onMarkDone && (
-          <button
-            className="mt-1.5 rounded bg-slate-950/50 px-2 py-1 text-xs font-semibold"
-            onPointerDown={(e) => e.stopPropagation()}
-            onClick={() => void onMarkDone(session.id)}
-          >
-            Mark done ✓
-          </button>
-        )}
-
-      {!compact && logged && onUnmark && (
-        <button
-          className="mt-1.5 rounded bg-slate-950/50 px-2 py-1 text-xs font-semibold opacity-80"
-          onPointerDown={(e) => e.stopPropagation()}
-          onClick={() => void onUnmark(session)}
-        >
-          ↩ Undo{session.type === 'strength' ? ' log' : ''}
-        </button>
-      )}
 
       {onDelete && session.is_extra && (
         <button
@@ -556,40 +558,6 @@ function SessionCard({
           ×
         </button>
       )}
-    </div>
-  );
-}
-
-function AerobicBaselineCard({ athleteId, onSaved }: { athleteId: string; onSaved: () => Promise<void> }) {
-  const [grade, setGrade] = useState('');
-  const [length, setLength] = useState('');
-  const [tut, setTut] = useState('');
-  const valid = grade.trim() && length.trim() && parseInt(tut, 10) > 0;
-  return (
-    <div className="card !border-sky-800 space-y-2">
-      <div className="font-semibold text-sky-200">Aerobic baseline (weeks 1–2)</div>
-      <p className="text-xs text-slate-400">{AEROBIC_GUIDANCE} Record your starting point:</p>
-      <div className="grid grid-cols-3 gap-2">
-        <input className="input" placeholder="Grade (e.g. 6a)" value={grade} onChange={(e) => setGrade(e.target.value)} />
-        <input className="input" placeholder="Length (e.g. 20m)" value={length} onChange={(e) => setLength(e.target.value)} />
-        <input className="input" placeholder="TUT (s)" type="number" inputMode="numeric" value={tut} onChange={(e) => setTut(e.target.value)} />
-      </div>
-      <button
-        className="btn-primary w-full"
-        disabled={!valid}
-        onClick={async () => {
-          await addAerobicProgression(athleteId, {
-            fortnight: 1,
-            grade: grade.trim(),
-            route_length: length.trim(),
-            tut_seconds: parseInt(tut, 10),
-            variable_bumped: null,
-          });
-          await onSaved();
-        }}
-      >
-        Save baseline
-      </button>
     </div>
   );
 }

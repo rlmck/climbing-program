@@ -17,16 +17,42 @@ import { GRIP_LABEL } from '../domain/types';
 
 const HAND_COLOR: Record<Hand, string> = { left: '#38bdf8', right: '#f472b6' };
 
+interface RepPoint {
+  rep: number;
+  value: number | null;
+  smooth: number | null;
+  unreliable: boolean;
+}
+
 interface Series {
   hand: Hand;
   round: 1 | 2;
   color: string;
   opacity: number;
   criticalForce: number | null;
-  data: Array<{ rep: number; value: number | null; unreliable: boolean }>;
+  data: RepPoint[];
   unreliableCount: number;
   cfRatio: number | null;
   thresholdZone: string | null;
+}
+
+/**
+ * Centre-weighted moving average (±2 reps, weights 3/2/1) so the decay curve
+ * reads as a trend instead of rep-to-rep noise. Unreliable reps still count,
+ * but at a quarter weight; nulls are skipped.
+ */
+function smoothAt(points: Array<{ value: number | null; unreliable: boolean }>, i: number): number | null {
+  const WEIGHT = [3, 2, 1];
+  let sum = 0;
+  let total = 0;
+  for (let j = Math.max(0, i - 2); j <= Math.min(points.length - 1, i + 2); j++) {
+    const p = points[j];
+    if (p.value === null) continue;
+    const w = WEIGHT[Math.abs(j - i)] * (p.unreliable ? 0.25 : 1);
+    sum += p.value * w;
+    total += w;
+  }
+  return total > 0 ? sum / total : null;
 }
 
 function summaryOf(row: BenchmarkRow): CftSummary | null {
@@ -69,17 +95,18 @@ export default function CftDecayChart({ grip, rows }: { grip: Grip; rows: Benchm
         if (!row) continue;
         const summary = summaryOf(row);
         if (!summary) continue;
+        const raw = summary.reps.map((rep) => ({
+          rep: rep.rep,
+          value: metric === 'average' ? rep.average : rep.peak,
+          unreliable: rep.unreliable,
+        }));
         out.push({
           hand,
           round,
           color: HAND_COLOR[hand],
           opacity: round === 1 && rows.some((r) => r.hand === hand && r.test_round === 2) ? 0.35 : 1,
           criticalForce: row.critical_force,
-          data: summary.reps.map((rep) => ({
-            rep: rep.rep,
-            value: metric === 'average' ? rep.average : rep.peak,
-            unreliable: rep.unreliable,
-          })),
+          data: raw.map((p, i) => ({ ...p, smooth: smoothAt(raw, i) })),
           unreliableCount: summary.reps.filter((r) => r.unreliable).length,
           cfRatio: row.cf_ratio,
           thresholdZone: row.threshold_zone,
@@ -88,6 +115,21 @@ export default function CftDecayChart({ grip, rows }: { grip: Grip; rows: Benchm
     }
     return out;
   }, [rows, grip, metric]);
+
+  // Fit the y-axis to the data (with a little headroom) instead of starting at
+  // zero — the decay curve fills the plot rather than hugging the top edge.
+  const yDomain = useMemo((): [number, number] | undefined => {
+    const values: number[] = [];
+    for (const s of series) {
+      for (const p of s.data) if (p.value !== null) values.push(p.value);
+      if (s.criticalForce !== null) values.push(s.criticalForce);
+    }
+    if (values.length === 0) return undefined;
+    const min = Math.min(...values);
+    const max = Math.max(...values);
+    const pad = Math.max((max - min) * 0.08, 1);
+    return [Math.max(0, Math.floor(min - pad)), Math.ceil(max + pad)];
+  }, [series]);
 
   if (series.length === 0) {
     return (
@@ -138,23 +180,41 @@ export default function CftDecayChart({ grip, rows }: { grip: Grip; rows: Benchm
               fontSize={11}
               label={undefined}
             />
-            <YAxis stroke="#64748b" fontSize={11} unit="" width={46} />
+            <YAxis stroke="#64748b" fontSize={11} unit="" width={46} domain={yDomain ?? [0, 'auto']} />
             <Tooltip
               contentStyle={{ background: '#0f172a', border: '1px solid #334155', fontSize: 12 }}
               formatter={(v: number) => [`${v?.toFixed?.(1)} kg`, metric]}
               labelFormatter={(rep) => `Rep ${rep}`}
             />
             <Legend wrapperStyle={{ fontSize: 11 }} />
+            {/* Raw reps as dots only — the smoothed curve below carries the trend. */}
             {series.map((s) => (
               <Line
-                key={`${s.hand}-${s.round}`}
+                key={`raw-${s.hand}-${s.round}`}
                 name={`${HAND_LABEL[s.hand]}${s.round === 2 ? ' (retest)' : ''}`}
                 data={s.data}
                 dataKey="value"
                 stroke={s.color}
-                strokeOpacity={s.opacity}
-                strokeWidth={s.round === 2 ? 2.5 : 1.5}
+                strokeOpacity={0}
                 dot={<RepDot />}
+                legendType="none"
+                isAnimationActive={false}
+                connectNulls
+              />
+            ))}
+            {series.map((s) => (
+              <Line
+                key={`smooth-${s.hand}-${s.round}`}
+                name={`${HAND_LABEL[s.hand]}${s.round === 2 ? ' (retest)' : ''}`}
+                data={s.data}
+                dataKey="smooth"
+                type="monotone"
+                stroke={s.color}
+                strokeOpacity={s.opacity}
+                strokeWidth={s.round === 2 ? 2.5 : 2}
+                dot={false}
+                activeDot={false}
+                tooltipType="none"
                 isAnimationActive={false}
                 connectNulls
               />
