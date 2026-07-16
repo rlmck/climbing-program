@@ -46,11 +46,11 @@ const TYPE_LABEL: Record<SessionType, string> = {
 };
 
 const TYPE_STYLE: Record<SessionType, string> = {
-  strength: 'bg-rose-900/70 border-rose-700',
-  aerobic: 'bg-sky-900/70 border-sky-700',
-  power_endurance: 'bg-violet-900/70 border-violet-700',
-  easy_climbing: 'bg-teal-900/70 border-teal-700',
-  mobility: 'bg-amber-900/60 border-amber-700',
+  strength: 'bg-rose-500/15 border-white/[0.06] border-l-rose-400',
+  aerobic: 'bg-sky-500/15 border-white/[0.06] border-l-sky-400',
+  power_endurance: 'bg-violet-500/15 border-white/[0.06] border-l-violet-400',
+  easy_climbing: 'bg-teal-500/15 border-white/[0.06] border-l-teal-400',
+  mobility: 'bg-amber-500/15 border-white/[0.06] border-l-amber-400',
 };
 
 interface Feedback {
@@ -191,30 +191,37 @@ export default function WeekBoard() {
   return (
     <DndContext sensors={sensors} onDragOver={onDragOver} onDragEnd={onDragEnd}>
       <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <button
-            className="btn-secondary !px-3 !py-1.5"
-            disabled={viewWeek <= 1}
-            onClick={() => setViewWeek((w) => w - 1)}
-          >
-            ←
-          </button>
-          <div className="text-center">
-            <div className="font-bold">
-              Week {viewWeek} of 13
-              {viewWeek === currentWeek && (
-                <span className="chip ml-2 bg-emerald-900 text-emerald-300">current</span>
-              )}
+        <div>
+          <div className="flex items-center justify-between">
+            <button
+              className="btn-secondary !px-3 !py-1.5"
+              disabled={viewWeek <= 1}
+              onClick={() => setViewWeek((w) => w - 1)}
+              aria-label="Previous week"
+            >
+              ←
+            </button>
+            <div className="text-center">
+              <div className="font-display text-lg font-bold leading-tight">
+                Week {viewWeek} <span className="text-sm font-semibold text-slate-500">/ 13</span>
+                {viewWeek === currentWeek && (
+                  <span className="chip ml-2 align-middle bg-emerald-500/15 text-emerald-300">current</span>
+                )}
+              </div>
+              <div className="font-display text-[0.65rem] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                {programWeek?.phase ?? ''}
+              </div>
             </div>
-            <div className="text-xs text-slate-400">{programWeek?.phase ?? ''}</div>
+            <button
+              className="btn-secondary !px-3 !py-1.5"
+              disabled={viewWeek >= 13}
+              onClick={() => setViewWeek((w) => w + 1)}
+              aria-label="Next week"
+            >
+              →
+            </button>
           </div>
-          <button
-            className="btn-secondary !px-3 !py-1.5"
-            disabled={viewWeek >= 13}
-            onClick={() => setViewWeek((w) => w + 1)}
-          >
-            →
-          </button>
+          <BoltRail viewWeek={viewWeek} currentWeek={currentWeek} onSelect={setViewWeek} />
         </div>
 
         {currentWeek === null && (
@@ -403,6 +410,50 @@ function ResetProgramCard() {
   );
 }
 
+/**
+ * The 13-week program as a bolt line: one bolt per week, clipped (filled) once
+ * the week is behind you, the current week glowing. Tap a bolt to jump there.
+ */
+function BoltRail({
+  viewWeek,
+  currentWeek,
+  onSelect,
+}: {
+  viewWeek: number;
+  currentWeek: number | null;
+  onSelect: (week: number) => void;
+}) {
+  return (
+    <div className="relative mt-3 flex items-center justify-between px-1">
+      <div className="absolute inset-x-3 top-1/2 h-px -translate-y-1/2 bg-white/10" aria-hidden="true" />
+      {Array.from({ length: 13 }, (_, i) => i + 1).map((week) => {
+        const done = currentWeek !== null && week < currentWeek;
+        const isCurrent = week === currentWeek;
+        const isViewed = week === viewWeek;
+        return (
+          <button
+            key={week}
+            aria-label={`Go to week ${week}`}
+            aria-current={isViewed ? 'true' : undefined}
+            onClick={() => onSelect(week)}
+            className="relative z-10 flex h-7 w-7 items-center justify-center"
+          >
+            <span
+              className={`block rounded-full transition-all ${
+                isCurrent
+                  ? 'h-3.5 w-3.5 bg-emerald-400 shadow-[0_0_10px_2px_rgba(52,211,153,0.5)]'
+                  : done
+                    ? 'h-2 w-2 bg-emerald-600'
+                    : 'h-2 w-2 border border-slate-600 bg-void'
+              } ${isViewed ? 'ring-2 ring-offset-2 ring-offset-void ' + (isCurrent ? 'ring-emerald-200/70' : 'ring-slate-400/80') : ''}`}
+            />
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 function Tray({
   sessions,
   onDelete,
@@ -415,7 +466,7 @@ function Tray({
     <div
       ref={setNodeRef}
       className={`rounded-xl border-2 border-dashed p-3 ${
-        isOver ? 'border-slate-500 bg-slate-900' : 'border-slate-800'
+        isOver ? 'border-slate-500 bg-slate-900' : 'border-white/10'
       }`}
     >
       <div className="mb-2 text-xs uppercase tracking-wider text-slate-500">
@@ -456,11 +507,11 @@ function DayCell({
       : 'border-rose-600'
     : isOver
       ? 'border-slate-500'
-      : 'border-slate-800';
+      : 'border-white/[0.05]';
   const dayName = new Date(`${date}T00:00:00`).toLocaleDateString(undefined, { weekday: 'short' });
 
   return (
-    <div ref={setNodeRef} className={`rounded-xl border-2 bg-slate-900/60 p-2 transition-colors ${border}`}>
+    <div ref={setNodeRef} className={`rounded-xl border-2 bg-slate-900/40 p-2 transition-colors ${border}`}>
       <div className="flex items-baseline justify-between px-1">
         <span className={`text-sm font-bold ${isToday ? 'text-emerald-400' : ''}`}>{dayName}</span>
         <span className="text-xs text-slate-500">{formatDayMonth(date)}</span>
@@ -505,7 +556,7 @@ function SessionCard({
       style={style}
       {...listeners}
       {...attributes}
-      className={`relative touch-none select-none rounded-lg border p-2 text-sm ${TYPE_STYLE[session.type]} ${
+      className={`relative touch-none select-none rounded-lg border border-l-4 p-2 text-sm ${TYPE_STYLE[session.type]} ${
         isDragging ? 'opacity-70 shadow-xl' : ''
       } ${draggable ? 'cursor-grab' : ''}`}
     >

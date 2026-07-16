@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { supabase } from '../lib/supabase';
+import { BrandMark } from '../components/Layout';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -55,7 +56,7 @@ export default function Login() {
             </button>
           </div>
         ) : (
-          <form onSubmit={sendReset} className="mt-6 space-y-4">
+          <form onSubmit={sendReset} className="card mt-6 space-y-4">
             <div>
               <label className="label" htmlFor="email">
                 Email
@@ -92,9 +93,12 @@ export default function Login() {
 
   return (
     <div className="mx-auto flex min-h-screen max-w-sm flex-col justify-center p-6">
-      <h1 className="text-2xl font-bold">Climbing Program</h1>
-      <p className="mt-1 text-sm text-slate-400">Sign in with your athlete account.</p>
-      <form onSubmit={submit} className="mt-6 space-y-4">
+      <div className="flex flex-col items-center text-center">
+        <BrandMark className="h-16 w-16" />
+        <h1 className="mt-4 text-3xl font-bold">Climbing Program</h1>
+        <p className="mt-1 text-sm text-slate-400">13 weeks. Two grips. One route to the send.</p>
+      </div>
+      <form onSubmit={submit} className="card mt-8 space-y-4">
         <div>
           <label className="label" htmlFor="email">
             Email

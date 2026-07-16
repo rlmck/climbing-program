@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#12203a"/>
+      <stop offset="1" stop-color="#070b14"/>
+    </linearGradient>
+    <linearGradient id="peak" x1="0" y1="1" x2="0" y2="0">
+      <stop offset="0" stop-color="#065f46"/>
+      <stop offset="1" stop-color="#34d399"/>
+    </linearGradient>
+    <linearGradient id="peak2" x1="0" y1="1" x2="0" y2="0">
+      <stop offset="0" stop-color="#064e3b"/>
+      <stop offset="1" stop-color="#10b981"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
+  <!-- back peak -->
+  <path d="M118 408 L268 156 L342 280 L398 408 Z" fill="url(#peak2)" opacity="0.75"/>
+  <!-- front peak -->
+  <path d="M56 408 L196 200 L262 300 L316 408 Z" fill="url(#peak)"/>
+  <!-- bolt line: the route up the front peak -->
+  <path d="M120 396 C 200 352 160 288 226 246 C 268 220 300 180 308 128"
+        fill="none" stroke="#e7edf6" stroke-width="13" stroke-linecap="round"
+        stroke-dasharray="0.1 52"/>
+  <!-- summit hold -->
+  <circle cx="312" cy="112" r="22" fill="#e7edf6"/>
+  <circle cx="312" cy="112" r="10" fill="#10b981"/>
+</svg>
